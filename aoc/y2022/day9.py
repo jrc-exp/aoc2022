@@ -1,20 +1,7 @@
 """ Day 9 Solutions """
-
-import sys
 from argparse import ArgumentParser
-from collections import Counter, defaultdict
-from itertools import permutations, product
-
-import numpy as np
-
-from aoc.y2022.utils import load_data
-
-
-def ints(x):
-    return list(map(int, x))
-
-
 from dataclasses import dataclass
+from aoc.y2022.utils import load_data
 
 
 @dataclass
@@ -47,33 +34,16 @@ class RopeTail(RopeHead):
 
     def follow(self, head):
         """Follow"""
-        mlr = False
-        mud = False
-        if head.y - self.y > 1:
-            self.move("U")
-            mud = True
-        if head.y - self.y < -1:
-            self.move("D")
-            mud = True
-        if head.x - self.x > 1:
-            self.move("R")
-            mlr = True
-        if head.x - self.x < -1:
-            self.move("L")
-            mlr = True
-
-        if mlr:
-            if head.y - self.y == 1:
-                self.move("U")
-            elif head.y - self.y == -1:
-                self.move("D")
-
-        if mud:
-            if head.x - self.x == 1:
-                self.move("R")
-            elif head.x - self.x == -1:
-                self.move("L")
-
+        if abs(head.y - self.y) == 2:
+            self.y += (head.y - self.y) // 2
+            # handle diagonal
+            if abs(head.x - self.x) == 1:
+                self.x = head.x
+        if abs(head.x - self.x) == 2:
+            self.x += (head.x - self.x) // 2
+            # handle diagonal
+            if abs(head.y - self.y) == 1:
+                self.y = head.y
         self.visited.add(self.loc)
 
 
