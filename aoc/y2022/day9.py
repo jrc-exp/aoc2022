@@ -35,7 +35,10 @@ class RopeTail(RopeHead):
         """Follow"""
         y_dist = head.y - self.y
         x_dist = head.x - self.x
-        if abs(y_dist) == 2:
+        if abs(y_dist) == 2 and abs(x_dist) == 2:
+            self.x += x_dist // 2
+            self.y += y_dist // 2
+        elif abs(y_dist) == 2:
             self.y += y_dist // 2
             self.x = head.x
         elif abs(x_dist) == 2:
@@ -52,6 +55,7 @@ def solve(d):
     head = RopeHead()
     tail = RopeTail()
     tails = [RopeTail() for _ in range(9)]
+    tails[0] = tail
 
     for row in d:
         direction, ct = row.split(" ")
@@ -59,11 +63,8 @@ def solve(d):
         for _ in range(ct):
             head.move(direction)
             tail.follow(head)
-            for idx, t in enumerate(tails):
-                if idx == 0:
-                    t.follow(head)
-                else:
-                    t.follow(tails[idx - 1])
+            for idx in range(1, 9):
+                tails[idx].follow(tails[idx - 1])
     result_1 = len(tail.visited)
     result_2 = len(tails[-1].visited)
 
