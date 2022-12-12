@@ -11,10 +11,6 @@ class RopeHead:
     x: int = 0
     y: int = 0
 
-    @property
-    def loc(self):
-        return (self.y, self.x)
-
     def move(self, direction):
         if direction == "L":
             self.x -= 1
@@ -30,21 +26,22 @@ class RopeHead:
 class RopeTail(RopeHead):
     """Rope Tail"""
 
-    visited = set()
+    visited = None
+
+    def __post_init__(self):
+        self.visited = set()
 
     def follow(self, head):
         """Follow"""
-        if abs(head.y - self.y) == 2:
-            self.y += (head.y - self.y) // 2
-            # handle diagonal
-            if abs(head.x - self.x) == 1:
-                self.x = head.x
-        if abs(head.x - self.x) == 2:
-            self.x += (head.x - self.x) // 2
-            # handle diagonal
-            if abs(head.y - self.y) == 1:
-                self.y = head.y
-        self.visited.add(self.loc)
+        y_dist = head.y - self.y
+        x_dist = head.x - self.x
+        if abs(y_dist) == 2:
+            self.y += y_dist // 2
+            self.x = head.x
+        elif abs(x_dist) == 2:
+            self.x += x_dist // 2
+            self.y = head.y
+        self.visited.add((self.y, self.x))
 
 
 def solve(d):
@@ -54,6 +51,7 @@ def solve(d):
     # print(d)
     head = RopeHead()
     tail = RopeTail()
+    tails = [RopeTail() for _ in range(9)]
 
     for row in d:
         direction, ct = row.split(" ")
@@ -61,7 +59,13 @@ def solve(d):
         for _ in range(ct):
             head.move(direction)
             tail.follow(head)
+            for idx, t in enumerate(tails):
+                if idx == 0:
+                    t.follow(head)
+                else:
+                    t.follow(tails[idx - 1])
     result_1 = len(tail.visited)
+    result_2 = len(tails[-1].visited)
 
     return result_1, result_2
 
@@ -76,7 +80,18 @@ def main():
         print("**** TEST DATA ****")
         d = load_data("test_day9.txt")
         test_answer_1 = 13
-        test_answer_2 = 0
+        test_answer_2 = 1
+        test_solution_1, test_solution_2 = solve(d)
+        assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
+        assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
+        print("**** TESTS PASSED ****")
+        print("Test Answer 1: ", test_answer_1)
+        print("My Test Answer 1: ", test_solution_1)
+        print("Test Answer 2: ", test_answer_2)
+        print("My Test Answer 2: ", test_solution_2)
+        d = load_data("test_day9_2.txt")
+        test_answer_1 = 88
+        test_answer_2 = 36
         test_solution_1, test_solution_2 = solve(d)
         assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
         assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
