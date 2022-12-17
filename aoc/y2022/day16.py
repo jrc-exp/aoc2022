@@ -20,10 +20,10 @@ def de2bi(x, l=10):
 
 from heapq import heappush
 
-FLOW = 0
-MOVE = 1
-VALVE = 2
-LOC = 3
+FLOW = 3
+MOVE = 0
+VALVE = 1
+LOC = 2
 
 
 def bit_set(x, bit):
@@ -37,6 +37,7 @@ def set_bit(x, bit):
 def legal_moves(state, dests):
     """Return legal moves"""
     valve = state[VALVE]
+    # return [idx for idx in dests if not bit_set(valve, idx)]
     return [idx for idx in dests if not bit_set(valve, idx)]
 
 
@@ -64,19 +65,6 @@ def heur(state, rates, dists, max_moves=30):
     return h
 
 
-def find_goal(start, goal, path, neighbors):
-    """Find a path from a node to another node"""
-    if goal in neighbors[start]:
-        return path + [start, goal]
-    for node in neighbors[start]:
-        visited = set(a for a in path)
-        if node not in visited:
-            goal_path = find_goal(node, goal, path + [start], neighbors)
-            if goal_path is not None:
-                return goal_path
-    return None
-
-
 from aoc.y2022.utils import dijkstra_algorithm
 
 
@@ -98,11 +86,8 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
 
     print(dists)
 
-    max_flow = sum(flow for flow in rates.values())
-
     open_set_hash = defaultdict(lambda: False)
-    # state = (move number, valve state, cumulative flow, location)
-    start_state = (0, 0, 0, 0)
+    start_state = (0, 0, 0)
     open_set_hash[start_state] = True
     open_set = [
         (0, start_state),
@@ -110,11 +95,6 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
     came_from = dict()
     g_score = defaultdict(lambda: 0)
     best_goal_score = -1
-    goal_valve = 0
-    for idx in rates:
-        if rates[idx]:
-            goal_valve = set_bit(goal_valve, idx)
-
     end_state = None
     ct = 0
     while open_set:
@@ -144,8 +124,8 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
             valve = state[VALVE]
             state_flow_rate = flow(valve, rates)
             valve = set_bit(valve, next_loc)
-            tentative_g_score = state[FLOW] + state_flow_rate * n_steps
-            next_state = (tentative_g_score, move_number, valve, next_loc)
+            tentative_g_score = g_score[state] + state_flow_rate * n_steps
+            next_state = (move_number, valve, next_loc)
 
             h_score = 0  # float("inf")  # heur(next_state, max_moves=max_moves, rates=rates, dists=dists)
 
@@ -164,10 +144,8 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
             if tentative_g_score >= g_score[next_state]:
                 came_from[next_state] = state
                 g_score[next_state] = tentative_g_score
-                if tentative_g_score > best_goal_score:
-                    best_goal_score = tentative_g_score
                 # slower with the heuristic... *sigh*
-                fn = g_score[next_state] + h_score
+                fn = tentative_g_score + h_score
                 if not open_set_hash[next_state]:
                     heappush(open_set, (fn, next_state))
                     open_set_hash[next_state] = True
@@ -184,7 +162,7 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
     path = list(reversed(path))
 
     print(path)
-    print_path = True
+    print_path = False
     valve = 0
     if print_path:
         last_loc = 0
