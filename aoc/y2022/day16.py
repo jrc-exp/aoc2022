@@ -47,24 +47,79 @@ def flow(valves, rates):
     return rate
 
 
-def heur(state, rates, dists, max_moves=30):
-    """Calculate heuristic"""
-    loc = state[LOC]
-    move_number = state[MOVE]
-    if move_number >= max_moves - 1:
-        return 0
-    max_moves_remaining = max_moves - move_number
-    valves = state[VALVE]
-    h = flow(valves, rates) * max_moves_remaining
-
-    for idx in rates:
-        if rates[idx] and not bit_set(valves, idx):
-            h += rates[idx] * max(0, max_moves_remaining - dists[(loc, idx)])
-
-    return h
-
-
 from aoc.y2022.utils import dijkstra_algorithm
+
+
+def solve_puzzle2(edges, rates, alpha_valves, max_moves=30):
+    """solve maze"""
+
+    start_valve = "AA"
+    start_index = alpha_valves.index(start_valve)
+    # list of distances from node to node
+    dists = dict()
+    # valid destinations that can turn on flow
+    dests = [node for node in rates if rates[node]]
+    for edge in [
+        start_index,
+    ] + dests:
+        _, short_path = dijkstra_algorithm(edges, edge)
+        for edge2 in dests:
+            if edge != edge2:
+                dists[(edge, edge2)] = short_path[edge2]
+
+    open_set_hash = defaultdict(lambda: False)
+    start_state = ((0, 0), 0, (start_index, start_index))
+    open_set_hash[start_state] = True
+    open_set = [
+        (0, start_state),
+    ]
+    came_from = dict()
+    g_score = defaultdict(lambda: 0)
+    best_goal_score = -1
+    ct = 0
+    while open_set:
+        ct += 1
+        _, state = open_set.pop()
+        open_set_hash[state] = False
+        curr_loc = state[LOC]
+        if state[MOVE] == max_moves:
+            continue
+        moves = legal_moves(state, dests)
+
+        for next_loc in moves:
+            for idx in range(2):
+                new_number = list(state[MOVE])
+                new_loc_final = list(curr_loc)
+                tentative_g_score = g_score[state]
+                valve = state[VALVE]
+                n_steps = dists[(curr_loc[idx], next_loc)] + 1
+
+                if state[MOVE][idx] + n_steps >= max_moves:
+                    continue
+
+                new_loc_final[idx] = next_loc
+                new_number[idx] = state[MOVE][idx] + n_steps
+                valve = set_bit(valve, next_loc)
+                tentative_g_score += rates[next_loc] * (max_moves - new_number[idx])
+
+                next_state = (tuple(new_number), valve, tuple(new_loc_final))
+
+                if tentative_g_score > best_goal_score:
+                    best_goal_score = tentative_g_score
+                    print("best", best_goal_score)
+
+                h_score = 0  # heur(next_state, max_moves=max_moves, rates=rates, dists=dists)
+
+                if tentative_g_score >= g_score[next_state]:
+                    came_from[next_state] = state
+                    g_score[next_state] = tentative_g_score
+                    # slower with the heuristic... *sigh*
+                    fn = tentative_g_score + h_score
+                    if not open_set_hash[next_state]:
+                        heappush(open_set, (fn, next_state))
+                        open_set_hash[next_state] = True
+
+    return best_goal_score
 
 
 def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
@@ -204,6 +259,7 @@ def solve(d):
     rates = {idx: alpha_rates[alpha_valves[idx]] for idx in valves}
 
     result_1 = solve_puzzle(edges, rates, alpha_valves=alpha_valves)
+    result_2 = solve_puzzle2(edges, rates, alpha_valves=alpha_valves, max_moves=26)
 
     return result_1, result_2
 
@@ -218,7 +274,7 @@ def main():
         print("**** TEST DATA ****")
         d = load_data("test_day16.txt")
         test_answer_1 = 1651
-        test_answer_2 = 0
+        test_answer_2 = 1707
         test_solution_1, test_solution_2 = solve(d)
         assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
         assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
