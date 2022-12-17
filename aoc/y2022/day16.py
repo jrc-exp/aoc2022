@@ -20,7 +20,6 @@ def de2bi(x, l=10):
 
 from heapq import heappush
 
-FLOW = 3
 MOVE = 0
 VALVE = 1
 LOC = 2
@@ -71,23 +70,23 @@ from aoc.y2022.utils import dijkstra_algorithm
 def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
     """solve maze"""
 
+    start_valve = "AA"
+    start_index = alpha_valves.index(start_valve)
     # list of distances from node to node
     dists = dict()
     # valid destinations that can turn on flow
     dests = [node for node in rates if rates[node]]
-    print(dests)
     for edge in [
-        0,
+        start_index,
     ] + dests:
         _, short_path = dijkstra_algorithm(edges, edge)
         for edge2 in dests:
             if edge != edge2:
                 dists[(edge, edge2)] = short_path[edge2]
 
-    print(dists)
-
     open_set_hash = defaultdict(lambda: False)
-    start_state = (0, 0, 0)
+    print("START_INDEX", start_index)
+    start_state = (0, 0, start_index)
     open_set_hash[start_state] = True
     open_set = [
         (0, start_state),
@@ -105,41 +104,22 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
         if state[MOVE] == max_moves:
             continue
         moves = legal_moves(state, dests)
-        if not moves:
-            moves = [None]
         for next_loc in moves:
-            if next_loc is None:
-                # if we're out of legal moves - just sit here
-                n_steps = max_moves - state[MOVE]
-                next_loc = curr_loc
-            else:
-                # if we have a legal move
-                n_steps = dists[(curr_loc, next_loc)] + 1
-                # can't do it if it takes too long
-                if state[MOVE] + n_steps >= max_moves:
-                    # we're off the end so let's tally the score
-                    n_steps = max_moves - state[MOVE]
-                    move_number = max_moves
+            n_steps = dists[(curr_loc, next_loc)] + 1
+
+            if state[MOVE] + n_steps >= max_moves:
+                continue
+
             move_number = state[MOVE] + n_steps
-            valve = state[VALVE]
-            state_flow_rate = flow(valve, rates)
-            valve = set_bit(valve, next_loc)
-            tentative_g_score = g_score[state] + state_flow_rate * n_steps
+            valve = set_bit(state[VALVE], next_loc)
+            tentative_g_score = g_score[state] + rates[next_loc] * (max_moves - move_number)
             next_state = (move_number, valve, next_loc)
 
-            h_score = 0  # float("inf")  # heur(next_state, max_moves=max_moves, rates=rates, dists=dists)
+            if tentative_g_score > best_goal_score:
+                end_state = next_state
+                best_goal_score = tentative_g_score
 
-            # stop condition - out of moves!
-            if max_moves == move_number:
-                full_score = tentative_g_score
-                if full_score > best_goal_score:
-                    print("best score!", full_score, next_state, state)
-                    end_state = next_state
-                    best_goal_score = full_score
-                    g_score[next_state] = full_score
-                    came_from[next_state] = state
-                    continue
-                continue
+            h_score = 0  # heur(next_state, max_moves=max_moves, rates=rates, dists=dists)
 
             if tentative_g_score >= g_score[next_state]:
                 came_from[next_state] = state
@@ -150,8 +130,6 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
                     heappush(open_set, (fn, next_state))
                     open_set_hash[next_state] = True
 
-    print(ct, "steps")
-
     path = [end_state]
     state = end_state
     while True:
@@ -161,8 +139,7 @@ def solve_puzzle(edges, rates, alpha_valves, max_moves=30):
         path.append(state)
     path = list(reversed(path))
 
-    print(path)
-    print_path = False
+    print_path = True
     valve = 0
     if print_path:
         last_loc = 0
