@@ -82,7 +82,6 @@ def print_board(board, max_y):
 def solve(d):
     """actual solution with puzzle input"""
     result_1, result_2 = 0, 0
-    print("INPUT DATA:")
 
     shape_cycle = cycle(shapes)
 
@@ -95,7 +94,8 @@ def solve(d):
     cts = [
         0,
     ]
-    while ct < 900000:
+    step_size = 1000
+    while ct < 8001:
         move = next(moves)
         if not moving:
             rock = make_rock(max_y, shape_cycle)
@@ -109,15 +109,14 @@ def solve(d):
             ct += 1
             if ct == 2022:
                 result_1 = max_y
-            if ct % 100000 == 0:
-                print(ct, max_y)
+            if ct % step_size == 0:
                 cts.append(max_y)
-                print(", ".join(map(str, np.diff(cts))))
 
+    # How did I come up with this crap?
     loop = list(map(int, np.diff(cts)))
     target = 1000000000000
-    total = target - 100000
-    result_2 = (total // 700000) * sum(loop[1:8]) + loop[0] + sum(loop[1 : (total % 700000) // 100000 + 1])
+    total = target - step_size
+    result_2 = (total // (7 * step_size)) * sum(loop[1:8]) + loop[0] + sum(loop[1 : (total % (7 * step_size)) // step_size + 1])
 
     return result_1, result_2
 
