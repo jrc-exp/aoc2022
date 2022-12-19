@@ -1,20 +1,13 @@
 """ Day 18 Solutions """
 
-import sys
 from argparse import ArgumentParser
-from collections import Counter, defaultdict
-from itertools import permutations, product
 
-import numpy as np
-
+from dataclasses import dataclass
 from aoc.y2022.utils import load_data
 
 
 def ints(x):
     return list(map(int, x))
-
-
-from dataclasses import dataclass
 
 
 @dataclass
