@@ -92,8 +92,10 @@ def solve(d):
     board = set((x, -1) for x in range(7))
     moving = False
     ct = 0
-
-    while ct < 2022:
+    cts = [
+        0,
+    ]
+    while ct < 900000:
         move = next(moves)
         if not moving:
             rock = make_rock(max_y, shape_cycle)
@@ -105,8 +107,17 @@ def solve(d):
                 board.add(tuple(pt))
             max_y = max(max_y, rock[0][1] + 1)
             ct += 1
+            if ct == 2022:
+                result_1 = max_y
+            if ct % 100000 == 0:
+                print(ct, max_y)
+                cts.append(max_y)
+                print(", ".join(map(str, np.diff(cts))))
 
-    result_1 = max_y
+    loop = list(map(int, np.diff(cts)))
+    target = 1000000000000
+    total = target - 100000
+    result_2 = (total // 700000) * sum(loop[1:8]) + loop[0] + sum(loop[1 : (total % 700000) // 100000 + 1])
 
     return result_1, result_2
 
@@ -121,7 +132,7 @@ def main():
         print("**** TEST DATA ****")
         d = load_data("test_day17.txt")
         test_answer_1 = 3068
-        test_answer_2 = 0
+        test_answer_2 = 1514285714288
         test_solution_1, test_solution_2 = solve(d)
         assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
         assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
