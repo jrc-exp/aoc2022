@@ -77,8 +77,10 @@ def solve_puzzle2(edges, rates, alpha_valves, max_moves=30):
     g_score = defaultdict(lambda: 0)
     best_goal_score = -1
     ct = 0
+    from time import time
+
+    start_time = time()
     while open_set:
-        ct += 1
         _, state = open_set.pop()
         open_set_hash[state] = False
         curr_loc = state[LOC]
@@ -88,14 +90,14 @@ def solve_puzzle2(edges, rates, alpha_valves, max_moves=30):
 
         for next_loc in moves:
             for idx in range(2):
+                ct += 1
+                n_steps = dists[(curr_loc[idx], next_loc)] + 1
+                if state[MOVE][idx] + n_steps >= max_moves:
+                    continue
                 new_number = list(state[MOVE])
                 new_loc_final = list(curr_loc)
                 tentative_g_score = g_score[state]
                 valve = state[VALVE]
-                n_steps = dists[(curr_loc[idx], next_loc)] + 1
-
-                if state[MOVE][idx] + n_steps >= max_moves:
-                    continue
 
                 new_loc_final[idx] = next_loc
                 new_number[idx] = state[MOVE][idx] + n_steps
@@ -106,7 +108,7 @@ def solve_puzzle2(edges, rates, alpha_valves, max_moves=30):
 
                 if tentative_g_score > best_goal_score:
                     best_goal_score = tentative_g_score
-                    print("best", best_goal_score)
+                    print("best", best_goal_score, "after", ct, "elapsed:", time() - start_time)
 
                 h_score = 0  # heur(next_state, max_moves=max_moves, rates=rates, dists=dists)
 

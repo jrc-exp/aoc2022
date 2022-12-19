@@ -14,11 +14,100 @@ def ints(x):
     return list(map(int, x))
 
 
+from copy import deepcopy
+from itertools import cycle
+
+
+flat_line = ((0, 0), (1, 0), (2, 0), (3, 0))
+plus = (
+    (1, 2),
+    (1, 0),
+    (0, 1),
+    (1, 1),
+    (2, 1),
+)
+l_shape = ((2, 2), (2, 0), (2, 1), (1, 0), (0, 0))
+vert_line = (
+    (0, 3),
+    (0, 0),
+    (0, 1),
+    (0, 2),
+)
+square = ((0, 1), (0, 0), (1, 0), (1, 1))
+shapes = (flat_line, plus, l_shape, vert_line, square)
+
+MOVE = {
+    "<": -1,
+    ">": 1,
+}
+
+
+def blow(rock, move, board):
+    new_rock = deepcopy(rock)
+    for pt in new_rock:
+        pt[0] += move
+        if pt[0] >= 7 or pt[0] < 0:
+            return rock
+    if any(tuple(pt) in board for pt in new_rock):
+        return rock
+    return new_rock
+
+
+def fall(rock, board):
+    new_rock = deepcopy(rock)
+    for pt in new_rock:
+        pt[1] -= 1
+    if any(tuple(pt) in board for pt in new_rock):
+        return rock, False
+    return new_rock, True
+
+
+def make_rock(max_y, shape_cycle):
+    rock = [list(l) for l in next(shape_cycle)]
+    start_y = max_y + 3
+    start_x = 2
+    for pt in rock:
+        pt[0] += start_x
+        pt[1] += start_y
+    return rock
+
+
+def print_board(board, max_y):
+    for y in reversed(range(-1, max_y + 3)):
+        line = ["#" if (x, y) in board else "." for x in range(7)]
+        line = "".join(line)
+        print(line)
+
+
 def solve(d):
     """actual solution with puzzle input"""
     result_1, result_2 = 0, 0
     print("INPUT DATA:")
-    print(d)
+
+    shape_cycle = cycle(shapes)
+
+    moves = map(lambda x: MOVE[x], d[0])
+    moves = cycle(moves)
+    max_y = 0
+    board = set((x, -1) for x in range(7))
+    moving = False
+    ct = 0
+
+    while ct < 2022:
+        move = next(moves)
+        if not moving:
+            rock = make_rock(max_y, shape_cycle)
+            moving = True
+        rock = blow(rock, move, board)
+        rock, moving = fall(rock, board)
+        if not moving:
+            for pt in rock:
+                board.add(tuple(pt))
+            max_y = max(max_y, rock[0][1] + 1)
+            ct += 1
+
+    result_1 = max_y
+
     return result_1, result_2
 
 
