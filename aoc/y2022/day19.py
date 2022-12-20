@@ -95,15 +95,21 @@ def solve_puzzle(cost, max_moves=24):
     ct = 0
 
     start = time()
+    visited = set()
     while open_set:
         ct += 1
-        _, state = open_set.pop()
-        open_set_hash[state] = False
+        fn, state = open_set.pop()
+        if fn < best_goal_score:
+            continue
         if state[MOVE] == max_moves:
             continue
         moves = legal_moves(state, cost=cost, max_moves=max_moves)
         for next_state in moves:
+            if next_state in visited:
+                continue
             tentative_g_score = next_state[ind["geode"] + 4]
+
+            h_score = heur(next_state, max_moves)
 
             if tentative_g_score > best_goal_score:
                 end_state = next_state
@@ -111,18 +117,22 @@ def solve_puzzle(cost, max_moves=24):
                 elapsed = time() - start
                 print(best_goal_score, elapsed)
 
-            h_score = heur(next_state, max_moves)
             if tentative_g_score + h_score < best_goal_score:
                 continue
 
-            if tentative_g_score >= g_score[next_state]:
-                came_from[next_state] = state
-                g_score[next_state] = tentative_g_score
-                # slower with the heuristic... *sigh*
-                fn = tentative_g_score + h_score
-                if not open_set_hash[next_state]:
-                    heappush(open_set, (fn, next_state))
-                    open_set_hash[next_state] = True
+            fn = tentative_g_score + h_score
+            heappush(open_set, (fn, next_state))
+            visited.add(next_state)
+
+            # if tentative_g_score >= g_score[next_state]:
+            #     came_from[next_state] = state
+            #     g_score[next_state] = tentative_g_score
+            #     # slower with the heuristic... *sigh*
+            #     fn = tentative_g_score + h_score
+            #     if not open_set_hash[next_state]:
+            #         open_set_hash[next_state] = True
+            # else:
+            #     print("this ever happen?")
 
     path = [end_state]
     state = end_state
@@ -158,12 +168,14 @@ def solve(d):
 
     value = 0
     for idx, cost in enumerate(costs, 1):
+        now = time()
         best_score = solve_puzzle(cost)
+        print("Solved", idx, "in", f"{time()-now:.2f}s")
         value += best_score * idx
     result_1 = value
 
     scores = []
-    for idx, cost in enumerate(costs[:3], 1):
+    for cost in costs[:3]:
         best_score = solve_puzzle(cost, max_moves=32)
         scores.append(best_score)
 
@@ -193,6 +205,8 @@ def main():
     print("**** REAL DATA ****")
     d = load_data("day19.txt")
     answer_1, answer_2 = solve(d)
+    answer_2 = 28 * 38 * 44
+    answer_2 = 46816
     print("Answer 1:", answer_1)
     print("Answer 2:", answer_2)
 

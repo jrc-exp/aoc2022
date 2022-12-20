@@ -32,6 +32,37 @@ bottom = (0, 0, -1)
 MOVES = (left, right, front, back, top, bottom)
 
 
+def legal_moves(loc, cubes):
+    moves = []
+    for move in MOVES:
+        coord = loc[0] + move[0], loc[1] + move[1], loc[2] + move[2]
+        if coord not in cubes:
+            moves.append(coord)
+    return moves
+
+
+def search_escape(start_state, mins, maxs, cubes):
+    """search for an escape route - simplified"""
+    open_set = [start_state]
+    visited = set()
+    escaped = False
+    while not escaped and open_set:
+        state = open_set.pop()
+        moves = legal_moves(state, cubes)
+        for next_state in moves:
+            if next_state in visited:
+                continue
+            for dim in range(3):
+                if not (mins[dim] < next_state[dim] < maxs[dim]):
+                    escaped = True
+                    break
+            if escaped:
+                break
+            open_set.append(next_state)
+            visited.add(next_state)
+    return escaped
+
+
 def solve(d):
     """actual solution with puzzle input"""
     result_1, result_2 = 0, 0
@@ -56,49 +87,19 @@ def solve(d):
 
     result_1 = sum(6 - len(c.neighbors) for c in cubes.values())
 
-    from matplotlib import pyplot as plt
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-    x, y, z = zip(*cubes)
-    ax.scatter(x, y, z, alpha=1.0)
-    x, y, z = zip(*air_pockets)
-    # ax.scatter(x, y, z)
-
+    # try to "escape" without hitting a wall:
     x, y, z = zip(*cubes)
     mins = min(x), min(y), min(z)
     maxs = max(x), max(y), max(z)
-    internal_walls = 0
-    external_walls = 0
-    maybe_internal = []
-    collected = []
-    for loc, c in air_pockets.items():
-        bump = 0
-        for dim in range(3):
-            coord = list(loc)
-            while mins[dim] <= coord[dim] <= maxs[dim]:
-                coord[dim] -= 1
-                if tuple(coord) in cubes:
-                    bump += 1
-                    break
-            coord = list(loc)
-            while mins[dim] <= coord[dim] <= maxs[dim]:
-                coord[dim] += 1
-                if tuple(coord) in cubes:
-                    bump += 1
-                    break
-        if bump == 6:
-            maybe_internal.append(c)
-            internal_walls += len(c.neighbors)
-            if loc in collected:
-                print("wtffff")
-            else:
-                collected.append(loc)
 
-    x, y, z = zip(*[(c.x, c.y, c.z) for c in maybe_internal])
-    ax.scatter(x, y, z, color="black", alpha=1.0)
-    plt.show()
+    stuck = []
+    for loc, cube in air_pockets.items():
+        escaped = search_escape(loc, mins, maxs, cubes)
+        if not escaped:
+            stuck.append(cube)
 
+    # those are the trapped ones
+    internal_walls = sum(len(c.neighbors) for c in stuck)
     result_2 = result_1 - internal_walls
 
     return result_1, result_2
