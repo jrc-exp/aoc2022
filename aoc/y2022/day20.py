@@ -79,8 +79,9 @@ def solve(d):
         pt.head = pts[(idx + 1) % N]
         pt.tail = pts[idx - 1]
 
+    # TODO(JRC): Fix part 1 to be able to use the mod operator before trying to do part 2
     for idx, pt in enumerate(pts):
-        for _ in range(abs(pt.x)):
+        for _ in range(abs(pt.x) % (N - 1)):
             if pt.x < 0:
                 pt.move_left()
             else:
@@ -92,6 +93,37 @@ def solve(d):
     result_1 = 0
     for offset in (1000, 2000, 3000):
         result_1 += vals[(zero + offset) % N]
+
+    ## part 2
+    key = 811589153
+    n = ints(d)
+    pts = []
+    for idx, x in enumerate(n):
+        pts.append(Point(x=x * key, N=len(n)))
+
+    N = len(pts)
+    for idx, pt in enumerate(pts):
+        if idx == 0:
+            pt.primary = True
+        pt.head = pts[(idx + 1) % N]
+        pt.tail = pts[idx - 1]
+
+    # TODO(JRC): Fix part 1 to be able to use the mod operator before trying to do part 2
+    for _ in range(10):
+        for idx, pt in enumerate(pts):
+            for _ in range(abs(pt.x) % (N - 1)):
+                if pt.x < 0:
+                    pt.move_left()
+                else:
+                    pt.move_right()
+
+    vals = get_list(pts)
+
+    zero = vals.index(0)
+    result_2 = 0
+    for offset in (1000, 2000, 3000):
+        result_2 += vals[(zero + offset) % N]
+    #
 
     return result_1, result_2
 
@@ -106,7 +138,7 @@ def main():
         print("**** TEST DATA ****")
         d = load_data("test_day20.txt")
         test_answer_1 = 3
-        test_answer_2 = 0
+        test_answer_2 = 1623178306
         test_solution_1, test_solution_2 = solve(d)
         assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
         assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
