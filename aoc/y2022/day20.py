@@ -22,10 +22,21 @@ class Point:
     """POINT"""
 
     x: int
-    N: int
     head = None
     tail = None
     primary = False
+
+    def pop(self):
+        if self.primary:
+            self.primary = False
+            self.head.primary = True
+        self.tail.head = self.head
+        self.head.tail = self.tail
+
+    def insert_right(self, pt):
+        pt.head = self.head
+        pt.tail = self
+        self.head = pt
 
     def swap(self, pt, d):
         """swap two pts"""
@@ -53,12 +64,14 @@ class Point:
 
 
 def get_list(pts):
+    """Print the list"""
     pt = pts[0]
     for pt in pts:
         if pt.primary:
             break
-    out = []
-    for _ in range(len(pts)):
+    out = [pt.x]
+    pt = pt.head
+    while not pt.primary:
         out.append(pt.x)
         pt = pt.head
     return out
@@ -67,51 +80,60 @@ def get_list(pts):
 def solve(d):
     """actual solution with puzzle input"""
     result_1, result_2 = 0, 0
-    n = ints(d)
+    nums = ints(d)
     pts = []
-    for idx, x in enumerate(n):
-        pts.append(Point(x=x, N=len(n)))
+    for idx, x in enumerate(nums):
+        pts.append(Point(x=x))
 
-    N = len(pts)
+    n = len(pts)
     for idx, pt in enumerate(pts):
         if idx == 0:
             pt.primary = True
-        pt.head = pts[(idx + 1) % N]
+        pt.head = pts[(idx + 1) % n]
         pt.tail = pts[idx - 1]
 
-    # TODO(JRC): Fix part 1 to be able to use the mod operator before trying to do part 2
     for idx, pt in enumerate(pts):
-        for _ in range(abs(pt.x) % (N - 1)):
-            if pt.x < 0:
-                pt.move_left()
-            else:
-                pt.move_right()
+        if pt.x == 0:
+            continue
+        dist = abs(pt.x) % (n - 1)
+        pt.pop()
+        if pt.x < 0:
+            target = pt
+            for _ in range(dist + 1):
+                target = target.tail
+        else:
+            target = pt
+            for _ in range(dist):
+                target = target.head
+        target.insert_right(pt)
+        assert len(get_list(pts)) == n
 
     vals = get_list(pts)
+    print(vals)
 
     zero = vals.index(0)
     result_1 = 0
     for offset in (1000, 2000, 3000):
-        result_1 += vals[(zero + offset) % N]
+        result_1 += vals[(zero + offset) % n]
 
     ## part 2
     key = 811589153
-    n = ints(d)
+    nums = ints(d)
     pts = []
-    for idx, x in enumerate(n):
-        pts.append(Point(x=x * key, N=len(n)))
+    for idx, x in enumerate(nums):
+        pts.append(Point(x=x * key))
 
-    N = len(pts)
+    n = len(pts)
     for idx, pt in enumerate(pts):
         if idx == 0:
             pt.primary = True
-        pt.head = pts[(idx + 1) % N]
+        pt.head = pts[(idx + 1) % n]
         pt.tail = pts[idx - 1]
 
     # TODO(JRC): Fix part 1 to be able to use the mod operator before trying to do part 2
     for _ in range(10):
         for idx, pt in enumerate(pts):
-            for _ in range(abs(pt.x) % (N - 1)):
+            for _ in range(abs(pt.x) % (n - 1)):
                 if pt.x < 0:
                     pt.move_left()
                 else:
@@ -122,7 +144,7 @@ def solve(d):
     zero = vals.index(0)
     result_2 = 0
     for offset in (1000, 2000, 3000):
-        result_2 += vals[(zero + offset) % N]
+        result_2 += vals[(zero + offset) % n]
     #
 
     return result_1, result_2

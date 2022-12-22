@@ -6,6 +6,12 @@ import os
 
 INPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "inputs")
 
+U = (+1, 0)
+D = (-1, 0)
+L = (0, -1)
+R = (0, 1)
+NEIGHBOR4 = U, D, L, R
+
 
 def load_data(file_name, load_as="text"):
     """Load data"""
