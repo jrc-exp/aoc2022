@@ -25,7 +25,6 @@ char_map = {
 # state indexes
 TIME = 0
 LOC = 1
-STAGE = 2
 
 
 def move_storm(blizzards, r, c):
@@ -45,27 +44,16 @@ def mdist(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def heur(state, start, goal):
+def heur(state, goal):
     """heur2"""
-    stage = state[STAGE]
     loc = state[LOC]
-    h = 0
-    if stage == 0:
-        h += mdist(loc, goal)
-        h += mdist(goal, start) * 2
-    elif stage == 1:
-        h += mdist(loc, start)
-        h += mdist(goal, start)
-    else:
-        h = mdist(loc, goal)
-    return h
+    return mdist(loc, goal)
 
 
 def legal_moves(state, blizzards, occupied, r, c, start, goal):
     """calculate legal moves"""
     t = state[TIME]
     loc = state[LOC]
-    stage = state[STAGE]
     if t + 1 not in blizzards:
         b, o = move_storm(blizzards[t], r, c)
         blizzards[t + 1] = b
@@ -75,40 +63,26 @@ def legal_moves(state, blizzards, occupied, r, c, start, goal):
     legal = []
     for move in N5:
         dest = loc[0] + move[0], loc[1] + move[1]
-        if dest == goal:
-            if stage == 0:
-                legal.append((t + 1, dest, stage + 1))
-            else:
-                legal.append((t + 1, dest, stage))
-        elif dest == start:
-            if stage == 1:
-                legal.append((t + 1, dest, stage + 1))
-            else:
-                legal.append((t + 1, dest, stage))
+        if dest in [start, goal]:
+            pass
         elif dest[0] < 0 or dest[1] < 0 or dest[0] >= r or dest[1] >= c:
             continue
         if not dest in o:
-            legal.append((t + 1, dest, stage))
+            legal.append((t + 1, dest))
     return legal
 
 
-def solve_puzzle(b, o, start, goal, r, c):
+def solve_puzzle(blizzards, occupied, start, goal, r, c, t_start=0):
     """a-star search"""
-
-    blizzards = dict()
-    occupied = dict()
-    blizzards[0] = b
-    occupied[0] = o
-
     open_set_hash = defaultdict(lambda: False)
-    start_state = (0, start, 0)
+    start_state = (t_start, start)
     open_set_hash[start_state] = True
     open_set = [
         (float("inf"), start_state),
     ]
     came_from = dict()
     g_score = defaultdict(lambda: float("inf"))
-    result_1, best_goal_score = float("inf"), float("inf")
+    best_goal_score = float("inf")
     while open_set:
         _, state = heappop(open_set)
         open_set_hash[state] = False
@@ -116,14 +90,11 @@ def solve_puzzle(b, o, start, goal, r, c):
         for next_state in moves:
             tentative_g_score = next_state[TIME]
             loc = next_state[LOC]
-            stage = next_state[STAGE]
-            if loc == goal and stage == 1:
-                if tentative_g_score < result_1:
-                    result_1 = tentative_g_score
-            if loc == goal and stage == 2:
+            if loc == goal:
                 if tentative_g_score < best_goal_score:
                     best_goal_score = tentative_g_score
-            h_score = heur(state, start, goal)
+                continue
+            h_score = heur(state, goal)
             if tentative_g_score + h_score > best_goal_score:
                 continue
             if tentative_g_score < g_score[next_state]:
@@ -134,7 +105,7 @@ def solve_puzzle(b, o, start, goal, r, c):
                     heappush(open_set, (fn, next_state))
                     open_set_hash[next_state] = True
 
-    return result_1, best_goal_score
+    return best_goal_score
 
 
 def solve(d):
@@ -156,7 +127,12 @@ def solve(d):
     # goal is bottom right, but down one
     goal = (r, c - 1)
 
-    result_1, result_2 = solve_puzzle(blizzards, occupied, start, goal, r, c)
+    blizzards = {0: blizzards}
+    occupied = {0: occupied}
+
+    result_1 = solve_puzzle(blizzards, occupied, start, goal, r, c)
+    tmp = solve_puzzle(blizzards, occupied, goal, start, r, c, t_start=result_1)
+    result_2 = solve_puzzle(blizzards, occupied, start, goal, r, c, t_start=tmp)
 
     return result_1, result_2
 
