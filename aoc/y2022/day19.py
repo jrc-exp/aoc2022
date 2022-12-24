@@ -1,12 +1,12 @@
 """ Day 19 Solutions """
 
 import re
-import numpy as np
-
-from heapq import heappush
 from argparse import ArgumentParser
 from collections import defaultdict
+from heapq import heappush
 from time import time
+
+import numpy as np
 
 from aoc.y2022.utils import load_data
 
@@ -69,13 +69,42 @@ def legal_moves(state, max_moves, cost):
     return [state] + [build(state, bot, cost) for bot in buildable]
 
 
+def legal_moves_bots(state, max_moves, cost):
+    """legal moves bots only"""
+    move = state[MOVE]
+    move_rem = max_moves - move
+    if move_rem <= 0:
+        return []
+    built = set()
+    build_list = []
+    start_state = state
+    mine_state = mine(start_state)
+    while move_rem and len(built) < 4:
+        buildable = can_build(state, cost)
+        state = mine(state)
+        move = state[MOVE]
+        move_rem = max_moves - move
+        for bot in buildable:
+            if bot not in built:
+                built.add(bot)
+                build_list.append((state, bot))
+    return [mine_state] + [build(s, b, cost) for (s, b) in build_list]
+
+
 def heur(state, max_moves=24):
+    """heuristic..."""
     bots = state[ind["geode"]]
     geodes = state[ind["geode"] + 4]
+    clay_bots = state[ind["clay"]]
+    obs_bots = state[ind["obsidian"]]
     move = state[MOVE]
     moves = max_moves - move
+    if not clay_bots:
+        moves -= 4
+    if not obs_bots:
+        moves -= 4
     # build a new geode bot at every step
-    return geodes + bots * moves + (moves * moves - 1) / 2
+    return geodes + bots * moves + max(0, ((moves - 1) * (moves - 2)) / 2)
 
 
 def solve_puzzle(cost, max_moves=24):
@@ -89,7 +118,6 @@ def solve_puzzle(cost, max_moves=24):
         (0, start_state),
     ]
     came_from = dict()
-    g_score = defaultdict(lambda: 0)
     best_goal_score = -1
     end_state = None
     ct = 0
@@ -103,7 +131,7 @@ def solve_puzzle(cost, max_moves=24):
             continue
         if state[MOVE] == max_moves:
             continue
-        moves = legal_moves(state, cost=cost, max_moves=max_moves)
+        moves = legal_moves_bots(state, cost=cost, max_moves=max_moves)
         for next_state in moves:
             if next_state in visited:
                 continue
@@ -123,16 +151,6 @@ def solve_puzzle(cost, max_moves=24):
             fn = tentative_g_score + h_score
             heappush(open_set, (fn, next_state))
             visited.add(next_state)
-
-            # if tentative_g_score >= g_score[next_state]:
-            #     came_from[next_state] = state
-            #     g_score[next_state] = tentative_g_score
-            #     # slower with the heuristic... *sigh*
-            #     fn = tentative_g_score + h_score
-            #     if not open_set_hash[next_state]:
-            #         open_set_hash[next_state] = True
-            # else:
-            #     print("this ever happen?")
 
     path = [end_state]
     state = end_state
@@ -173,6 +191,7 @@ def solve(d):
         print("Solved", idx, "in", f"{time()-now:.2f}s")
         value += best_score * idx
     result_1 = value
+    print(result_1)
 
     scores = []
     for cost in costs[:3]:
@@ -205,8 +224,7 @@ def main():
     print("**** REAL DATA ****")
     d = load_data("day19.txt")
     answer_1, answer_2 = solve(d)
-    answer_2 = 28 * 38 * 44
-    answer_2 = 46816
+    # answer_2 = 28 * 38 * 44
     print("Answer 1:", answer_1)
     print("Answer 2:", answer_2)
 
