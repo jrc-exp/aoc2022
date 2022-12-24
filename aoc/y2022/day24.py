@@ -2,66 +2,30 @@
 
 from argparse import ArgumentParser
 from collections import defaultdict
+from heapq import heappush, heappop
 
 from aoc.y2022.utils import load_data
 
 
+# directions
 U = (-1, 0)
 D = (1, 0)
 R = (0, 1)
 L = (0, -1)
 N4 = [U, D, L, R]
 N5 = [U, D, L, R, (0, 0)]
-dir_map = {
+char_map = {
     ">": R,
     "^": U,
     "v": D,
     "<": L,
+    ".": 0,
+    "#": 1,
 }
-OPEN = 0
-WALL = 1
-char_map = {
-    ".": OPEN,
-    "#": WALL,
-}
-char_map.update(dir_map)
-
-rev_char_map = {v: k for (k, v) in char_map.items()}
-
-
-def ints(x):
-    return list(map(int, x))
-
-
-def print_board(board, blizz_set):
-    """
-    Print the board
-    """
-    printing = True
-    y = 0
-    x = 0
-    lines = []
-    while printing and (y, x) in board:
-        row = []
-        while printing:
-            if (y, x) in board:
-                row.append(rev_char_map[board[(y, x)]])
-            else:
-                printing = False
-            x += 1
-        printing = True
-        x = 0
-        y += 1
-        lines.append(row)
-
-    visited = defaultdict(lambda: 0)
-    for (y, x, d) in blizz_set:
-        visited[y, x] += 1
-        ct = visited[y, x]
-        lines[y][x] = rev_char_map[d] if ct == 1 else str(ct)
-
-    for row in lines:
-        print("".join(row))
+# state indexes
+TIME = 0
+LOC = 1
+STAGE = 2
 
 
 def move_storm(blizzards, r, c):
@@ -77,6 +41,7 @@ def move_storm(blizzards, r, c):
 
 
 def mdist(a, b):
+    """manhattan distance"""
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
@@ -84,21 +49,16 @@ def heur(state, start, goal):
     """heur2"""
     stage = state[STAGE]
     loc = state[LOC]
-    heur = 0
+    h = 0
     if stage == 0:
-        heur += mdist(loc, goal)
-        heur += mdist(goal, start) * 2
+        h += mdist(loc, goal)
+        h += mdist(goal, start) * 2
     elif stage == 1:
-        heur += mdist(loc, start)
-        heur += mdist(goal, start)
+        h += mdist(loc, start)
+        h += mdist(goal, start)
     else:
-        heur = mdist(loc, goal)
-    return heur
-
-
-TIME = 0
-LOC = 1
-STAGE = 2
+        h = mdist(loc, goal)
+    return h
 
 
 def legal_moves(state, blizzards, occupied, r, c, start, goal):
@@ -132,11 +92,8 @@ def legal_moves(state, blizzards, occupied, r, c, start, goal):
     return legal
 
 
-from heapq import heappush, heappop
-
-
 def solve_puzzle(b, o, start, goal, r, c):
-    """solve maze"""
+    """a-star search"""
 
     blizzards = dict()
     occupied = dict()
@@ -151,7 +108,7 @@ def solve_puzzle(b, o, start, goal, r, c):
     ]
     came_from = dict()
     g_score = defaultdict(lambda: float("inf"))
-    result_1, result_2 = float("inf"), float("inf")
+    result_1, best_goal_score = float("inf"), float("inf")
     while open_set:
         _, state = heappop(open_set)
         open_set_hash[state] = False
@@ -164,10 +121,10 @@ def solve_puzzle(b, o, start, goal, r, c):
                 if tentative_g_score < result_1:
                     result_1 = tentative_g_score
             if loc == goal and stage == 2:
-                if tentative_g_score < result_2:
-                    result_2 = tentative_g_score
+                if tentative_g_score < best_goal_score:
+                    best_goal_score = tentative_g_score
             h_score = heur(state, start, goal)
-            if tentative_g_score + h_score > result_2:
+            if tentative_g_score + h_score > best_goal_score:
                 continue
             if tentative_g_score < g_score[next_state]:
                 came_from[next_state] = state
@@ -177,30 +134,26 @@ def solve_puzzle(b, o, start, goal, r, c):
                     heappush(open_set, (fn, next_state))
                     open_set_hash[next_state] = True
 
-    return result_1, result_2
+    return result_1, best_goal_score
 
 
 def solve(d):
     """actual solution with puzzle input"""
-    result_1, result_2 = 0, 0
-    board = dict()
-    walls = set()
+    # parse that puzz
     blizzards = []
     occupied = set()
+    y, x = 0, 0
     for y, row in enumerate(d[1:-1]):
         for x, char in enumerate(row[1:-1]):
             val = char_map[char]
-            if val == WALL:
-                board[(y, x)] = WALL
-                walls.add((y, x))
-            else:
-                board[(y, x)] = OPEN
             if val in N4:
                 blizzards.append((y, x, val))
                 occupied.add((y, x))
     r, c = y + 1, x + 1
 
+    # start is top left, but up one
     start = (-1, 0)
+    # goal is bottom right, but down one
     goal = (r, c - 1)
 
     result_1, result_2 = solve_puzzle(blizzards, occupied, start, goal, r, c)
