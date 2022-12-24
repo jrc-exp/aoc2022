@@ -80,11 +80,7 @@ def mdist(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def heur(loc, goal):
-    return mdist(loc, goal)
-
-
-def heur2(state, start, goal):
+def heur(state, start, goal):
     """heur2"""
     stage = state[STAGE]
     loc = state[LOC]
@@ -106,28 +102,6 @@ STAGE = 2
 
 
 def legal_moves(state, blizzards, occupied, r, c, start, goal):
-    """calculate legal moves"""
-    t = state[TIME]
-    loc = state[LOC]
-    if t + 1 not in blizzards:
-        b, o = move_storm(blizzards[t], r, c)
-        blizzards[t + 1] = b
-        occupied[t + 1] = o
-    else:
-        b, o = blizzards[t + 1], occupied[t + 1]
-    legal = []
-    for move in N5:
-        dest = loc[0] + move[0], loc[1] + move[1]
-        if dest in [start, goal]:
-            pass
-        elif dest[0] < 0 or dest[1] < 0 or dest[0] >= r or dest[1] >= c:
-            continue
-        if not dest in o:
-            legal.append((t + 1, dest))
-    return legal
-
-
-def legal_moves_2(state, blizzards, occupied, r, c, start, goal):
     """calculate legal moves"""
     t = state[TIME]
     loc = state[LOC]
@@ -170,56 +144,6 @@ def solve_puzzle(b, o, start, goal, r, c):
     occupied[0] = o
 
     open_set_hash = defaultdict(lambda: False)
-    start_state = (0, start)
-    open_set_hash[start_state] = True
-    open_set = [
-        (float("inf"), start_state),
-    ]
-    came_from = dict()
-    g_score = defaultdict(lambda: float("inf"))
-    best_goal_score = float("inf")
-    while open_set:
-        _, state = heappop(open_set)
-        open_set_hash[state] = False
-        moves = legal_moves(state, blizzards, occupied, r, c, start, goal)
-        for next_state in moves:
-            tentative_g_score = next_state[TIME]
-            loc = next_state[LOC]
-            if loc == goal:
-                if tentative_g_score < best_goal_score:
-                    best_goal_score = tentative_g_score
-                    end_state = next_state
-            h_score = heur(loc, goal)
-            if tentative_g_score + h_score > best_goal_score:
-                continue
-            if tentative_g_score < g_score[next_state]:
-                came_from[next_state] = state
-                g_score[next_state] = tentative_g_score
-                fn = tentative_g_score + h_score
-                if not open_set_hash[next_state]:
-                    heappush(open_set, (fn, next_state))
-                    open_set_hash[next_state] = True
-
-    path = [end_state]
-    state = end_state
-    while True:
-        state = came_from.get(state, None)
-        if not state:
-            break
-        path.append(state)
-    path = list(reversed(path))
-    return best_goal_score
-
-
-def solve_puzzle_p2(b, o, start, goal, r, c):
-    """solve maze"""
-
-    blizzards = dict()
-    occupied = dict()
-    blizzards[0] = b
-    occupied[0] = o
-
-    open_set_hash = defaultdict(lambda: False)
     start_state = (0, start, 0)
     open_set_hash[start_state] = True
     open_set = [
@@ -227,21 +151,23 @@ def solve_puzzle_p2(b, o, start, goal, r, c):
     ]
     came_from = dict()
     g_score = defaultdict(lambda: float("inf"))
-    best_goal_score = float("inf")
+    result_1, result_2 = float("inf"), float("inf")
     while open_set:
         _, state = heappop(open_set)
         open_set_hash[state] = False
-        moves = legal_moves_2(state, blizzards, occupied, r, c, start, goal)
+        moves = legal_moves(state, blizzards, occupied, r, c, start, goal)
         for next_state in moves:
             tentative_g_score = next_state[TIME]
             loc = next_state[LOC]
             stage = next_state[STAGE]
+            if loc == goal and stage == 1:
+                if tentative_g_score < result_1:
+                    result_1 = tentative_g_score
             if loc == goal and stage == 2:
-                if tentative_g_score < best_goal_score:
-                    best_goal_score = tentative_g_score
-                    end_state = next_state
-            h_score = heur2(state, start, goal)
-            if tentative_g_score + h_score > best_goal_score:
+                if tentative_g_score < result_2:
+                    result_2 = tentative_g_score
+            h_score = heur(state, start, goal)
+            if tentative_g_score + h_score > result_2:
                 continue
             if tentative_g_score < g_score[next_state]:
                 came_from[next_state] = state
@@ -251,15 +177,7 @@ def solve_puzzle_p2(b, o, start, goal, r, c):
                     heappush(open_set, (fn, next_state))
                     open_set_hash[next_state] = True
 
-    path = [end_state]
-    state = end_state
-    while True:
-        state = came_from.get(state, None)
-        if not state:
-            break
-        path.append(state)
-    path = list(reversed(path))
-    return best_goal_score
+    return result_1, result_2
 
 
 def solve(d):
@@ -285,8 +203,7 @@ def solve(d):
     start = (-1, 0)
     goal = (r, c - 1)
 
-    result_1 = solve_puzzle(blizzards, occupied, start, goal, r, c)
-    result_2 = solve_puzzle_p2(blizzards, occupied, start, goal, r, c)
+    result_1, result_2 = solve_puzzle(blizzards, occupied, start, goal, r, c)
 
     return result_1, result_2
 
