@@ -2,11 +2,9 @@
 
 import re
 from argparse import ArgumentParser
-from collections import defaultdict
-from heapq import heappush
-from time import time
-
-import numpy as np
+from heapq import heappush, heappop
+from math import ceil, prod
+from multiprocessing import Pool
 
 from aoc.y2022.utils import load_data
 
@@ -19,6 +17,7 @@ def ints(x):
     return list(map(int, x))
 
 
+# state indices
 ind = {
     "ore": 0,
     "clay": 1,
@@ -28,14 +27,20 @@ ind = {
 MOVE = 8
 
 
-def mine(state):
+def mine(state, steps=1):
+    if steps > 1:
+        state = mine(state, steps - 1)
+    move = state[MOVE]
     return (
-        *state[:4],
+        state[0],
+        state[1],
+        state[2],
+        state[3],
         state[0] + state[4],
         state[1] + state[5],
         state[2] + state[6],
         state[3] + state[7],
-        state[8] + 1,
+        move + 1,
     )
 
 
@@ -48,25 +53,26 @@ def build(state, bot, cost):
     return tuple(new_state)
 
 
-def can_build(state, cost):
+def could_build(state, cost, max_moves):
+    """bots that could be built and when from this state"""
     build_list = []
-    for bot, prices in cost.items():
-        for material, price in prices.items():
-            if price > state[ind[material] + 4]:
-                break
-        else:
-            build_list.append(bot)
-    return build_list
-
-
-def legal_moves(state, max_moves, cost):
     move = state[MOVE]
-    move_rem = max_moves - move
-    if move_rem <= 0:
-        return []
-    buildable = can_build(state, cost)
-    state = mine(state)
-    return [state] + [build(state, bot, cost) for bot in buildable]
+    for bot, prices in cost.items():
+        highest_build_step = 0
+        for material, price in prices.items():
+            bots = state[ind[material]]
+            if bots == 0:
+                break
+            stock = state[ind[material] + 4]
+            steps = ceil((price - stock) / bots)
+            if steps > highest_build_step:
+                highest_build_step = steps
+        else:
+            if move + highest_build_step < max_moves - 1:
+                s = mine(state, steps=highest_build_step) if highest_build_step else state
+                build_list.append((bot, s))
+    next_states = [build(mine(s), b, cost) for (b, s) in build_list]
+    return next_states
 
 
 def legal_moves_bots(state, max_moves, cost):
@@ -75,36 +81,16 @@ def legal_moves_bots(state, max_moves, cost):
     move_rem = max_moves - move
     if move_rem <= 0:
         return []
-    built = set()
-    build_list = []
-    start_state = state
-    mine_state = mine(start_state)
-    while move_rem and len(built) < 4:
-        buildable = can_build(state, cost)
-        state = mine(state)
-        move = state[MOVE]
-        move_rem = max_moves - move
-        for bot in buildable:
-            if bot not in built:
-                built.add(bot)
-                build_list.append((state, bot))
-    return [mine_state] + [build(s, b, cost) for (s, b) in build_list]
+    return could_build(state, cost, max_moves)
 
 
 def heur(state, max_moves=24):
-    """heuristic..."""
-    bots = state[ind["geode"]]
-    geodes = state[ind["geode"] + 4]
-    clay_bots = state[ind["clay"]]
-    obs_bots = state[ind["obsidian"]]
+    """
+    Simple heuristic is - build a new geode bot at every next step
+    """
     move = state[MOVE]
     moves = max_moves - move
-    if not clay_bots:
-        moves -= 4
-    if not obs_bots:
-        moves -= 4
-    # build a new geode bot at every step
-    return geodes + bots * moves + max(0, ((moves - 1) * (moves - 2)) / 2)
+    return ((moves) * (moves - 1)) / 2
 
 
 def solve_puzzle(cost, max_moves=24):
@@ -112,63 +98,46 @@ def solve_puzzle(cost, max_moves=24):
 
     start_state = (1, 0, 0, 0, 0, 0, 0, 0, 0)
 
-    open_set_hash = defaultdict(lambda: False)
-    open_set_hash[start_state] = True
     open_set = [
         (0, start_state),
     ]
-    came_from = dict()
-    best_goal_score = -1
-    end_state = None
-    ct = 0
+    best_goal_score = 0
 
-    start = time()
     visited = set()
     while open_set:
-        ct += 1
-        fn, state = open_set.pop()
-        if fn < best_goal_score:
-            continue
+        fn, state = heappop(open_set)
         if state[MOVE] == max_moves:
             continue
-        moves = legal_moves_bots(state, cost=cost, max_moves=max_moves)
-        for next_state in moves:
+        for next_state in legal_moves_bots(state, cost=cost, max_moves=max_moves):
             if next_state in visited:
                 continue
-            tentative_g_score = next_state[ind["geode"] + 4]
-
+            # update state score and heuristic:
+            move_rem = max_moves - next_state[MOVE]
+            tentative_g_score = next_state[ind["geode"] + 4] + next_state[ind["geode"]] * move_rem
             h_score = heur(next_state, max_moves)
 
-            if tentative_g_score > best_goal_score:
-                end_state = next_state
-                best_goal_score = tentative_g_score
-                elapsed = time() - start
-                print(best_goal_score, elapsed)
-
+            # bail if this can't possible improve
             if tentative_g_score + h_score < best_goal_score:
                 continue
 
+            if tentative_g_score > best_goal_score:
+                best_goal_score = tentative_g_score
+
             fn = tentative_g_score + h_score
-            heappush(open_set, (fn, next_state))
+            heappush(open_set, (-fn, next_state))
             visited.add(next_state)
 
-    path = [end_state]
-    state = end_state
-    while True:
-        state = came_from.get(state, None)
-        if not state:
-            break
-        path.append(state)
-    path = list(reversed(path))
-    [print(p) for p in path]
     return best_goal_score
+
+
+def sp2(x):
+    """needed to call in p.map for multiprocessing..."""
+    return solve_puzzle(x, max_moves=32)
 
 
 def solve(d):
     """actual solution with puzzle input"""
     result_1, result_2 = 0, 0
-    print("INPUT DATA:")
-    print(d)
     costs = []
     for row in d:
         s = row.split("Each")
@@ -184,21 +153,17 @@ def solve(d):
             cost[n] = rcost
         costs.append(cost)
 
-    value = 0
-    for idx, cost in enumerate(costs, 1):
-        now = time()
-        best_score = solve_puzzle(cost)
-        print("Solved", idx, "in", f"{time()-now:.2f}s")
-        value += best_score * idx
-    result_1 = value
-    print(result_1)
+    # part 1 - all blueprints for 24 steps
+    with Pool(len(costs)) as p:
+        values = p.map(solve_puzzle, costs)
+        result_1 = sum(v * (idx + 1) for idx, v in enumerate(values))
 
-    scores = []
-    for cost in costs[:3]:
-        best_score = solve_puzzle(cost, max_moves=32)
-        scores.append(best_score)
+    # part 2 - first three blueprints for 30 steps
+    max_nodes = 3
+    with Pool(max_nodes) as p:
+        scores = p.map(sp2, costs[:max_nodes])
 
-    result_2 = np.prod(scores)
+    result_2 = prod(scores)
     return result_1, result_2
 
 
@@ -214,7 +179,7 @@ def main():
         test_answer_1 = 33
         test_answer_2 = 56 * 62
         test_solution_1, test_solution_2 = solve(d)
-        # assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
+        assert test_solution_1 == test_answer_1, f"TEST #1 FAILED: TRUTH={test_answer_1}, YOURS={test_solution_1}"
         assert test_solution_2 == test_answer_2, f"TEST #2 FAILED: TRUTH={test_answer_2}, YOURS={test_solution_2}"
         print("**** TESTS PASSED ****")
         print("Test Answer 1: ", test_answer_1)
